@@ -190,7 +190,7 @@ export const NotifyOscPlugin: Plugin = async (ctx) => {
       }).catch(() => {}),
   }
 
-  logger.info("Plugin initialized", {
+  logger.debug("Plugin initialized", {
     notifyChildSessions: config.notifyChildSessions,
     titlePrefix: config.titlePrefix,
     quietHours: config.quietHours,
@@ -261,7 +261,7 @@ export const NotifyOscPlugin: Plugin = async (ctx) => {
     }
 
     const message = `${config.titlePrefix}: Ready for review - ${sessionTitle}`
-    logger.info("Sending OSC notification", { message, type: "session.idle" })
+    logger.debug("Sending OSC notification", { message, type: "session.idle" })
     sendOsc(message)
   }
 
@@ -277,7 +277,7 @@ export const NotifyOscPlugin: Plugin = async (ctx) => {
 
     const errorMessage = error?.slice(0, 100) || "Something went wrong"
     const message = `${config.titlePrefix}: Something went wrong - ${errorMessage}`
-    logger.info("Sending OSC notification", { message, type: "session.error" })
+    logger.debug("Sending OSC notification", { message, type: "session.error" })
     sendOsc(message)
   }
 
@@ -299,7 +299,7 @@ export const NotifyOscPlugin: Plugin = async (ctx) => {
     }
 
     const message = `${config.titlePrefix}: Waiting for you - OpenCode needs your input`
-    logger.info("Sending OSC notification", { message, type: "permission.asked" })
+    logger.debug("Sending OSC notification", { message, type: "permission.asked" })
     sendOsc(message)
   }
 
@@ -319,7 +319,7 @@ export const NotifyOscPlugin: Plugin = async (ctx) => {
     }
 
     const message = `${config.titlePrefix}: Question for you - OpenCode needs your input`
-    logger.info("Sending OSC notification", { message, type: "question" })
+    logger.debug("Sending OSC notification", { message, type: "question" })
     sendOsc(message)
   }
 
