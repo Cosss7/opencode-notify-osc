@@ -164,7 +164,7 @@ function buildPermissionEventDedupeKey(permission: { id?: string }): string | nu
 // PLUGIN
 // ==========================================
 
-const NotifyOscPlugin: Plugin = async (ctx) => {
+export const NotifyOscPlugin: Plugin = async (ctx) => {
   const { client } = ctx
 
   // Load config once at startup
@@ -365,5 +365,3 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
     },
   }
 }
-
-export const NotifyOscPlugin
