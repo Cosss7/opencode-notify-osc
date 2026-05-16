@@ -14,9 +14,19 @@ import * as path from "node:path"
 import type { Plugin } from "@opencode-ai/plugin"
 import type { Event } from "@opencode-ai/sdk"
 
+// Check if running inside tmux
+const IS_TMUX = process.env.TMUX !== undefined
+
 // OSC 9: terminal notification sequence
 // Format: ESC ] 9 ; message BEL
-const OSC_NOTIFY = (message: string) => `\x1b]9;${message}\x07`
+// In tmux, wrap with tmux passthrough sequence: ESC P tmux ; ESC <seq> ESC \
+const OSC_NOTIFY = (message: string) => {
+  const seq = `\x1b]9;${message}\x07`
+  if (IS_TMUX) {
+    return `\x1bPtmux;\x1b${seq}\x1b\\`
+  }
+  return seq
+}
 
 // Debounce windows (matching opencode-notify)
 const QUESTION_DEDUPE_MS = 1500
