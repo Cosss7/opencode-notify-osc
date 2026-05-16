@@ -338,7 +338,6 @@ export const NotifyOscPlugin: Plugin = async (ctx) => {
       logger.debug("Event received", { eventType: event.type })
 
       switch (event.type) {
-        case "session.status":
         case "session.idle": {
           const sessionID = toNonEmptyString(event.properties.sessionID)
           if (sessionID) {
