@@ -164,19 +164,19 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
   const logger = {
     debug: (message: string, extra?: Record<string, unknown>) =>
       client.app.log({
-        service: "notify-osc", level: "debug", message, extra,
+        body: { service: "notify-osc", level: "debug", message, extra },
       }).catch(() => {}),
     info: (message: string, extra?: Record<string, unknown>) =>
       client.app.log({
-        service: "notify-osc", level: "info", message, extra,
+        body: { service: "notify-osc", level: "info", message, extra },
       }).catch(() => {}),
     warn: (message: string, extra?: Record<string, unknown>) =>
       client.app.log({
-        service: "notify-osc", level: "warn", message, extra,
+        body: { service: "notify-osc", level: "warn", message, extra },
       }).catch(() => {}),
     error: (message: string, extra?: Record<string, unknown>) =>
       client.app.log({
-        service: "notify-osc", level: "error", message, extra,
+        body: { service: "notify-osc", level: "error", message, extra },
       }).catch(() => {}),
   }
 
@@ -203,7 +203,7 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
   // Check if session is a parent session (no parentID)
   async function isParentSession(sessionID: string): Promise<boolean> {
     try {
-      const session = await client.session.get({ sessionID })
+      const session = await client.session.get({ id: sessionID })
       return !session.data?.parentID
     } catch {
       return true
@@ -242,7 +242,7 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
 
     let sessionTitle = "Task"
     try {
-      const session = await client.session.get({ sessionID })
+      const session = await client.session.get({ id: sessionID })
       if (session.data?.title) {
         sessionTitle = session.data.title.slice(0, 50)
       }
