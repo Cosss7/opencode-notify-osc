@@ -137,41 +137,14 @@ function buildQuestionToolDedupeKey(sessionID: unknown, callID: unknown): string
   return `question:${normalizedSessionID}:${normalizedCallID}`
 }
 
-function buildQuestionEventDedupeKey(properties: unknown): string | null {
-  if (!properties || typeof properties !== "object") return null
-
-  const record = properties as Record<string, unknown>
-  const normalizedSessionID = toNonEmptyString(record.sessionID)
-  if (!normalizedSessionID) return null
-
-  const toolInfo =
-    record.tool && typeof record.tool === "object"
-      ? (record.tool as Record<string, unknown>)
-      : undefined
-  const normalizedCallID = toNonEmptyString(toolInfo?.callID)
-  if (normalizedCallID) {
-    return `question:${normalizedSessionID}:${normalizedCallID}`
-  }
-
-  const normalizedRequestID = toNonEmptyString(record.id)
-  if (normalizedRequestID) {
-    return `question:${normalizedSessionID}:request:${normalizedRequestID}`
-  }
-
-  return null
-}
-
 function buildSessionReadyDedupeKey(sessionID: unknown): string | null {
   const normalizedSessionID = toNonEmptyString(sessionID)
   if (!normalizedSessionID) return null
   return `session-ready:${normalizedSessionID}`
 }
 
-function buildPermissionEventDedupeKey(properties: unknown): string | null {
-  if (!properties || typeof properties !== "object") return null
-
-  const record = properties as Record<string, unknown>
-  const normalizedRequestID = toNonEmptyString(record.id)
+function buildPermissionEventDedupeKey(permission: { id?: string }): string | null {
+  const normalizedRequestID = toNonEmptyString(permission.id)
   if (!normalizedRequestID) return null
 
   return `permission:request:${normalizedRequestID}`
@@ -200,7 +173,7 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
   // Check if session is a parent session (no parentID)
   async function isParentSession(sessionID: string): Promise<boolean> {
     try {
-      const session = await client.session.get({ path: { id: sessionID } })
+      const session = await client.session.get({ sessionID })
       return !session.data?.parentID
     } catch {
       return true
@@ -232,7 +205,7 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
 
     let sessionTitle = "Task"
     try {
-      const session = await client.session.get({ path: { id: sessionID } })
+      const session = await client.session.get({ sessionID })
       if (session.data?.title) {
         sessionTitle = session.data.title.slice(0, 50)
       }
@@ -255,8 +228,8 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
     sendOsc(`${config.titlePrefix}: Something went wrong - ${errorMessage}`)
   }
 
-  async function handlePermissionUpdated(properties: unknown): Promise<void> {
-    const dedupeKey = buildPermissionEventDedupeKey(properties)
+  async function handlePermissionUpdated(permission: { id?: string }): Promise<void> {
+    const dedupeKey = buildPermissionEventDedupeKey(permission)
 
     if (
       dedupeKey &&
@@ -296,14 +269,12 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
       }
     },
 
-    // Hook: event — listen for session/permission/question events
+    // Hook: event — listen for session/permission events
     event: async ({ event }: { event: Event }) => {
-      const runtimeEvent = event as { type: string; properties?: Record<string, unknown> }
-
-      switch (runtimeEvent.type) {
+      switch (event.type) {
         case "session.status":
         case "session.idle": {
-          const sessionID = toNonEmptyString(runtimeEvent.properties?.sessionID)
+          const sessionID = toNonEmptyString(event.properties.sessionID)
           if (sessionID) {
             await handleSessionIdle(sessionID)
           }
@@ -311,24 +282,17 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
         }
 
         case "session.error": {
-          const sessionID = toNonEmptyString(runtimeEvent.properties?.sessionID)
-          const error = runtimeEvent.properties?.error
-          const errorMessage = typeof error === "string" ? error : error ? String(error) : undefined
+          const sessionID = toNonEmptyString(event.properties.sessionID)
+          const error = event.properties.error
+          const errorMessage = error?.data?.message
           if (sessionID) {
             await handleSessionError(sessionID, errorMessage)
           }
           break
         }
 
-        case "permission.updated":
-        case "permission.asked": {
-          await handlePermissionUpdated(runtimeEvent.properties)
-          break
-        }
-
-        case "question.asked": {
-          const dedupeKey = buildQuestionEventDedupeKey(runtimeEvent.properties)
-          await handleQuestionAsked(dedupeKey)
+        case "permission.updated": {
+          await handlePermissionUpdated(event.properties)
           break
         }
       }

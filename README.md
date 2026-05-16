@@ -16,9 +16,8 @@ When OpenCode needs your attention, this plugin sends an [OSC 9](https://iterm2.
 |-------|------|-------------|
 | `session.idle` / `session.status` | LLM conversation ends | `{prefix}: Ready for review - {sessionTitle}` |
 | `session.error` | Error occurs | `{prefix}: Something went wrong - {error}` |
-| `permission.asked` / `permission.updated` | Permission request | `{prefix}: Waiting for you - OpenCode needs your input` |
+| `permission.updated` | Permission request | `{prefix}: Waiting for you - OpenCode needs your input` |
 | `tool.execute.before` (tool=question) | OpenCode asks a question | `{prefix}: Question for you - OpenCode needs your input` |
-| `question.asked` | Direct question event | `{prefix}: Question for you - OpenCode needs your input` |
 
 ## Installation
 
