@@ -203,7 +203,7 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
   // Check if session is a parent session (no parentID)
   async function isParentSession(sessionID: string): Promise<boolean> {
     try {
-      const session = await client.session.get({ id: sessionID })
+      const session = await client.session.get({ path: { id: sessionID } })
       return !session.data?.parentID
     } catch {
       return true
@@ -242,7 +242,7 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
 
     let sessionTitle = "Task"
     try {
-      const session = await client.session.get({ id: sessionID })
+      const session = await client.session.get({ path: { id: sessionID } })
       if (session.data?.title) {
         sessionTitle = session.data.title.slice(0, 50)
       }
@@ -271,8 +271,8 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
     sendOsc(message)
   }
 
-  async function handlePermissionUpdated(permission: { id?: string }): Promise<void> {
-    logger.debug("handlePermissionUpdated", { permissionID: permission.id })
+  async function handlePermissionAsked(permission: { id?: string }): Promise<void> {
+    logger.debug("handlePermissionAsked", { permissionID: permission.id })
 
     const dedupeKey = buildPermissionEventDedupeKey(permission)
 
@@ -289,7 +289,7 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
     }
 
     const message = `${config.titlePrefix}: Waiting for you - OpenCode needs your input`
-    logger.info("Sending OSC notification", { message, type: "permission.updated" })
+    logger.info("Sending OSC notification", { message, type: "permission.asked" })
     sendOsc(message)
   }
 
@@ -347,8 +347,8 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
           break
         }
 
-        case "permission.updated": {
-          await handlePermissionUpdated(event.properties)
+        case "permission.asked": {
+          await handlePermissionAsked(event.properties)
           break
         }
       }
@@ -356,4 +356,4 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
   }
 }
 
-export default NotifyOscPlugin
+export const NotifyOscPlugin
