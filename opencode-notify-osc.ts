@@ -160,23 +160,23 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
   // Load config once at startup
   const config = await loadConfig()
 
-  // Logger using SDK log API (avoids console output that breaks TUI)
+  // Logger using SDK app.log API (avoids console output that breaks TUI)
   const logger = {
     debug: (message: string, extra?: Record<string, unknown>) =>
-      client.log({
-        body: { service: "notify-osc", level: "debug", message, extra },
+      client.app.log({
+        service: "notify-osc", level: "debug", message, extra,
       }).catch(() => {}),
     info: (message: string, extra?: Record<string, unknown>) =>
-      client.log({
-        body: { service: "notify-osc", level: "info", message, extra },
+      client.app.log({
+        service: "notify-osc", level: "info", message, extra,
       }).catch(() => {}),
     warn: (message: string, extra?: Record<string, unknown>) =>
-      client.log({
-        body: { service: "notify-osc", level: "warn", message, extra },
+      client.app.log({
+        service: "notify-osc", level: "warn", message, extra,
       }).catch(() => {}),
     error: (message: string, extra?: Record<string, unknown>) =>
-      client.log({
-        body: { service: "notify-osc", level: "error", message, extra },
+      client.app.log({
+        service: "notify-osc", level: "error", message, extra,
       }).catch(() => {}),
   }
 
