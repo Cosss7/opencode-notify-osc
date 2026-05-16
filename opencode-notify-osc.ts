@@ -160,6 +160,32 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
   // Load config once at startup
   const config = await loadConfig()
 
+  // Logger using SDK log API (avoids console output that breaks TUI)
+  const logger = {
+    debug: (message: string, extra?: Record<string, unknown>) =>
+      client.log({
+        body: { service: "notify-osc", level: "debug", message, extra },
+      }).catch(() => {}),
+    info: (message: string, extra?: Record<string, unknown>) =>
+      client.log({
+        body: { service: "notify-osc", level: "info", message, extra },
+      }).catch(() => {}),
+    warn: (message: string, extra?: Record<string, unknown>) =>
+      client.log({
+        body: { service: "notify-osc", level: "warn", message, extra },
+      }).catch(() => {}),
+    error: (message: string, extra?: Record<string, unknown>) =>
+      client.log({
+        body: { service: "notify-osc", level: "error", message, extra },
+      }).catch(() => {}),
+  }
+
+  logger.info("Plugin initialized", {
+    notifyChildSessions: config.notifyChildSessions,
+    titlePrefix: config.titlePrefix,
+    quietHours: config.quietHours,
+  })
+
   const state = {
     recentQuestionNotifications: new Map<string, number>(),
     recentReadyNotifications: new Map<string, number>(),
@@ -167,7 +193,11 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
   }
 
   const sendOsc = (message: string) => {
-    process.stderr.write(OSC_NOTIFY(message))
+    try {
+      process.stderr.write(OSC_NOTIFY(message))
+    } catch (err) {
+      logger.error("Failed to send OSC notification", { message, error: String(err) })
+    }
   }
 
   // Check if session is a parent session (no parentID)
@@ -183,12 +213,18 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
   // --- Event Handlers (replicated from opencode-notify) ---
 
   async function handleSessionIdle(sessionID: string): Promise<void> {
+    logger.debug("handleSessionIdle", { sessionID })
+
     if (!config.notifyChildSessions) {
       const isParent = await isParentSession(sessionID)
+      logger.debug("isParentSession check", { sessionID, isParent })
       if (!isParent) return
     }
 
-    if (isQuietHours(config)) return
+    if (isQuietHours(config)) {
+      logger.debug("Quiet hours active, skipping", { sessionID })
+      return
+    }
 
     const dedupeKey = buildSessionReadyDedupeKey(sessionID)
     if (!dedupeKey) return
@@ -200,6 +236,7 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
         READY_DEDUPE_MS,
       )
     ) {
+      logger.debug("Deduped, skipping session idle", { sessionID, dedupeKey })
       return
     }
 
@@ -209,14 +246,18 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
       if (session.data?.title) {
         sessionTitle = session.data.title.slice(0, 50)
       }
-    } catch {
-      // use default
+    } catch (err) {
+      logger.warn("Failed to get session title", { sessionID, error: String(err) })
     }
 
-    sendOsc(`${config.titlePrefix}: Ready for review - ${sessionTitle}`)
+    const message = `${config.titlePrefix}: Ready for review - ${sessionTitle}`
+    logger.info("Sending OSC notification", { message, type: "session.idle" })
+    sendOsc(message)
   }
 
   async function handleSessionError(sessionID: string, error?: string): Promise<void> {
+    logger.debug("handleSessionError", { sessionID, error })
+
     if (!config.notifyChildSessions) {
       const isParent = await isParentSession(sessionID)
       if (!isParent) return
@@ -225,10 +266,14 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
     if (isQuietHours(config)) return
 
     const errorMessage = error?.slice(0, 100) || "Something went wrong"
-    sendOsc(`${config.titlePrefix}: Something went wrong - ${errorMessage}`)
+    const message = `${config.titlePrefix}: Something went wrong - ${errorMessage}`
+    logger.info("Sending OSC notification", { message, type: "session.error" })
+    sendOsc(message)
   }
 
   async function handlePermissionUpdated(permission: { id?: string }): Promise<void> {
+    logger.debug("handlePermissionUpdated", { permissionID: permission.id })
+
     const dedupeKey = buildPermissionEventDedupeKey(permission)
 
     if (
@@ -239,13 +284,18 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
         PERMISSION_DEDUPE_MS,
       )
     ) {
+      logger.debug("Deduped, skipping permission", { permissionID: permission.id })
       return
     }
 
-    sendOsc(`${config.titlePrefix}: Waiting for you - OpenCode needs your input`)
+    const message = `${config.titlePrefix}: Waiting for you - OpenCode needs your input`
+    logger.info("Sending OSC notification", { message, type: "permission.updated" })
+    sendOsc(message)
   }
 
   async function handleQuestionAsked(dedupeKey: string | null): Promise<void> {
+    logger.debug("handleQuestionAsked", { dedupeKey })
+
     if (
       dedupeKey &&
       !shouldSendDedupedNotification(
@@ -254,15 +304,19 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
         QUESTION_DEDUPE_MS,
       )
     ) {
+      logger.debug("Deduped, skipping question", { dedupeKey })
       return
     }
 
-    sendOsc(`${config.titlePrefix}: Question for you - OpenCode needs your input`)
+    const message = `${config.titlePrefix}: Question for you - OpenCode needs your input`
+    logger.info("Sending OSC notification", { message, type: "question" })
+    sendOsc(message)
   }
 
   return {
     // Hook: tool.execute.before — detect question tool
     "tool.execute.before": async (input: { tool: string; sessionID: string; callID: string }) => {
+      logger.debug("tool.execute.before", { tool: input.tool, sessionID: input.sessionID, callID: input.callID })
       if (input.tool === "question") {
         const dedupeKey = buildQuestionToolDedupeKey(input.sessionID, input.callID)
         await handleQuestionAsked(dedupeKey)
@@ -271,6 +325,8 @@ const NotifyOscPlugin: Plugin = async (ctx) => {
 
     // Hook: event — listen for session/permission events
     event: async ({ event }: { event: Event }) => {
+      logger.debug("Event received", { eventType: event.type })
+
       switch (event.type) {
         case "session.status":
         case "session.idle": {
