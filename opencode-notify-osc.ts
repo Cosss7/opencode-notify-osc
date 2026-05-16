@@ -202,9 +202,15 @@ export const NotifyOscPlugin: Plugin = async (ctx) => {
     recentPermissionNotifications: new Map<string, number>(),
   }
 
+  const isTmux = !!process.env.TMUX
+
   const sendOsc = (message: string) => {
     try {
       process.stderr.write(OSC_NOTIFY(message))
+
+      if (isTmux) {
+        process.stderr.write("\x07")
+      }
     } catch (err) {
       logger.error("Failed to send OSC notification", { message, error: String(err) })
     }
