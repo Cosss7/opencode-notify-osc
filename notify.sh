@@ -6,7 +6,7 @@
 set -euo pipefail
 
 input=$(cat)
-hook_event=$(jq -r '.hook_event // empty' <<<"$input")
+hook_event=$(jq -r '.hook_event_name // empty' <<<"$input")
 
 # Determine title and body based on hook event
 case "$hook_event" in
