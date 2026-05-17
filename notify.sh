@@ -43,12 +43,14 @@ esac
 osascript -e "display notification \"$body\" with title \"$title\" sound name \"default\"" >/dev/null 2>&1 || true
 
 # Build OSC 9 terminal notification sequence
+# Note: DCS tmux passthrough (\033Ptmux;...) is silently rejected by
+# Claude Code's terminalSequence allowlist, which only permits OSC 0/1/2/9/99/777
+# and BEL. We send plain OSC 9 and let tmux handle forwarding.
+seq=$(printf '\033]9;%s\007' "$body")
+
+# Additional audible bell for tmux since terminalSequence doesn't trigger sound
 if [ -n "${TMUX:-}" ]; then
-  # tmux passthrough: DCS tmux; <seq> ST + BEL for tmux bell
-  seq=$(printf '\033Ptmux;\033\033]9;%s\007\033\\\007' "$body")
-else
-  # standard OSC 9: ESC ] 9 ; message BEL
-  seq=$(printf '\033]9;%s\007' "$body")
+  seq="${seq}$(printf '\007')"
 fi
 
 # Return JSON with terminalSequence for Claude Code to emit
