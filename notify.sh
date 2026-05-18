@@ -40,7 +40,7 @@ case "$hook_event" in
 esac
 
 # macOS desktop notification (side effect)
-osascript -e "display notification \"$body\" with title \"$title\" sound name \"default\"" >/dev/null 2>&1 || true
+# osascript -e "display notification \"$body\" with title \"$title\" sound name \"default\"" >/dev/null 2>&1 || true
 
 # Build OSC 9 terminal notification sequence
 # Note: DCS tmux passthrough (\033Ptmux;...) is silently rejected by

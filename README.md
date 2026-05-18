@@ -1,29 +1,89 @@
 # opencode-notify-osc
 
-OpenCode plugin that sends OSC 9 notification sequences to your terminal.
+Terminal notifications for AI coding assistants via [OSC 9](https://iterm2.com/documentation-escape-sequences.html) escape sequences.
 
-Replicates the event/hook listening logic from [opencode-notify](https://github.com/kdcokenny/opencode-notify), but uses OSC 9 terminal notifications instead of desktop notifications.
+Supports both **Claude Code hooks** and **OpenCode plugin**.
 
-## What it does
+- **macOS desktop notification** via `osascript`
+- **Terminal notification** via OSC 9 (Ghostty, iTerm2, WezTerm, Windows Terminal, etc.)
+- **Audible bell** in tmux sessions
 
-When OpenCode needs your attention, this plugin sends an [OSC 9](https://iterm2.com/documentation-escape-sequences.html) escape sequence to your terminal, which triggers a native notification in supported terminals.
+---
 
-**Supported terminals:** Ghostty, iTerm2, WezTerm, Windows Terminal, and any terminal that supports OSC 9 notifications.
+## Table of Contents
 
-## Triggers
+- [Claude Code Hooks](#claude-code-hooks)
+- [OpenCode Plugin](#opencode-plugin)
+- [Requirements](#requirements)
+- [License](#license)
 
-| Event | When | OSC Message |
-|-------|------|-------------|
-| `session.idle` / `session.status` | LLM conversation ends | `{prefix}: Ready for review - {sessionTitle}` |
+---
+
+## Claude Code Hooks
+
+Use `notify.sh` as a [Claude Code hook](https://code.claude.com/docs/en/hooks) to get notified when Claude needs your attention.
+
+### Events
+
+| Hook Event | When | Notification |
+|-----------|------|-------------|
+| `Stop` | Claude finishes responding | "Ready for review" |
+| `PermissionRequest` | A tool needs permission | "Waiting for you - Needs permission ({tool})" |
+| `PreToolUse` | Claude is about to use a tool | Only notifies for `AskUserQuestion`: "Question for you" |
+
+### Installation
+
+1. Clone this repository
+2. Add to your Claude Code settings (`~/.claude/settings.json` or `.claude/settings.json` in your project):
+
+```json
+{
+  "hooks": {
+    "Stop": {
+      "type": "script",
+      "command": "/absolute/path/to/notify.sh"
+    },
+    "PermissionRequest": {
+      "type": "script",
+      "command": "/absolute/path/to/notify.sh"
+    },
+    "PreToolUse": {
+      "type": "script",
+      "command": "/absolute/path/to/notify.sh"
+    }
+  }
+}
+```
+
+### How It Works
+
+`notify.sh` reads the hook event JSON from stdin and outputs a `terminalSequence` field that Claude Code emits to your terminal:
+
+```bash
+# OSC 9 notification sequence
+\x1b]9;Ready for review\x07
+```
+
+The script also triggers a native macOS notification via `osascript`.
+
+---
+
+## OpenCode Plugin
+
+Use `opencode-notify-osc.ts` as an OpenCode plugin for terminal notifications.
+
+### Events
+
+| Event | When | Message |
+|-------|------|---------|
+| `session.idle` / `session.status` | Conversation ends | `{prefix}: Ready for review - {sessionTitle}` |
 | `session.error` | Error occurs | `{prefix}: Something went wrong - {error}` |
 | `permission.asked` | Permission request | `{prefix}: Waiting for you - OpenCode needs your input` |
-| `tool.execute.before` (tool=question) | OpenCode asks a question | `{prefix}: Question for you - OpenCode needs your input` |
+| `tool.execute.before` (tool=question) | Question asked | `{prefix}: Question for you - OpenCode needs your input` |
 
-## Installation
+### Installation
 
-### Option 1: Local plugin
-
-Copy `opencode-notify-osc.ts` to your OpenCode plugins directory:
+**Option 1: Local plugin**
 
 ```bash
 # Global
@@ -33,9 +93,9 @@ cp opencode-notify-osc.ts ~/.config/opencode/plugins/
 cp opencode-notify-osc.ts .opencode/plugins/
 ```
 
-Restart OpenCode. The plugin will be loaded automatically.
+Restart OpenCode.
 
-### Option 2: opencode.json
+**Option 2: opencode.json**
 
 ```json
 {
@@ -44,7 +104,7 @@ Restart OpenCode. The plugin will be loaded automatically.
 }
 ```
 
-## Configuration
+### Configuration
 
 Create `~/.config/opencode/opencode-notify-osc.json`:
 
@@ -60,33 +120,41 @@ Create `~/.config/opencode/opencode-notify-osc.json`:
 }
 ```
 
-### Options
-
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `notifyChildSessions` | `boolean` | `false` | When `true`, also notify for child/sub-session events |
-| `quietHours.enabled` | `boolean` | `false` | Enable quiet hours suppression |
-| `quietHours.start` | `string` | `"22:00"` | Quiet hours start time (HH:MM) |
-| `quietHours.end` | `string` | `"08:00"` | Quiet hours end time (HH:MM) |
-| `titlePrefix` | `string` | `"OpenCode"` | Prefix for all notification messages |
+| `notifyChildSessions` | `boolean` | `false` | Notify for child/sub-session events |
+| `quietHours.enabled` | `boolean` | `false` | Suppress notifications during quiet hours |
+| `quietHours.start` | `string` | `"22:00"` | Quiet hours start (HH:MM) |
+| `quietHours.end` | `string` | `"08:00"` | Quiet hours end (HH:MM) |
+| `titlePrefix` | `string` | `"OpenCode"` | Prefix for all messages |
 
-### Quiet Hours
+#### Quiet Hours
 
-When quiet hours are enabled, notifications are suppressed during the specified time window. Supports overnight ranges (e.g., `22:00` - `08:00`).
+Supports overnight ranges (e.g., `22:00` - `08:00`).
 
-### Child Sessions
+#### Child Sessions
 
-By default, only parent sessions trigger notifications. Sub-agents and background tasks won't spam you. Set `notifyChildSessions: true` to include them.
+By default, only parent sessions trigger notifications. Set `notifyChildSessions: true` to include sub-agents and background tasks.
 
-## How it works
+### How It Works
 
-The plugin hooks into OpenCode's event system and writes OSC 9 sequences to `stderr`:
+The plugin writes OSC 9 sequences directly to `stderr`:
 
 ```
 \x1b]9;OpenCode: Ready for review - Task\x07
 ```
 
-Your terminal intercepts this sequence and displays a native notification.
+Your terminal intercepts this and displays a native notification.
+
+---
+
+## Requirements
+
+- **macOS** (for desktop notifications via `osascript`)
+- **`jq`** for Claude Code hooks (`brew install jq`)
+- **Terminal with OSC 9 support**: Ghostty, iTerm2, WezTerm, Windows Terminal, ConEmu, Kitty (via OSC 99), Warp (via OSC 777)
+
+---
 
 ## License
 
